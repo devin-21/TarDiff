@@ -75,4 +75,3 @@ After generation you can quantify how useful the synthetic data really is for th
 ---
 
 Enjoy exploring target-oriented diffusion for healthcare ML!  For issues or pull requests, please open a GitHub ticket.
-```
