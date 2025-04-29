@@ -70,7 +70,7 @@ data:
   target: ldm.data.ts_data_loader.TSClassCondTrainDataModule
   params:
     data_path_dict:
-      MIMIC_III_Readmission: /home/v-dengbowen/mount/dataset/newer/mimic-iii/mimic-iii/readmission/train_tuple.pkl
+      MIMIC_III_Readmission: data/mimic_icustay/train_tuple.pkl
     window: *seqlen
     val_portion: 0.1
     batch_size: 256
@@ -84,7 +84,7 @@ lightning:
     image_logger:
       target: utils.callback_utils.TSLogger
       params:
-        batch_frequency: 20
+        batch_frequency: 5000
         max_images: 8
         increase_log_steps: false
         log_images_kwargs:
@@ -94,7 +94,5 @@ lightning:
 
   trainer:
     benchmark: True
-    # max_epochs: 20
-    # max_steps: 20000
     max_steps: 20
     grad_watch: False

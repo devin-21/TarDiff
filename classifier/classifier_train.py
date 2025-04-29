@@ -30,16 +30,17 @@ import os
 import pandas as pd
 from typing import Optional, Tuple
 
+
 class TimeSeriesDataset(Dataset):
+
     def __init__(
         self,
         data,
         labels,
-        normalize= True,
-        stats= None,
-        eps= 1e-8,
+        normalize=True,
+        stats=None,
+        eps=1e-8,
     ):
-
 
         if isinstance(data, np.ndarray):
             data = torch.from_numpy(data)
@@ -64,7 +65,8 @@ class TimeSeriesDataset(Dataset):
                 if isinstance(std, np.ndarray):
                     std = torch.from_numpy(std)
                 mean, std = mean.float(), std.float()
-            self.register_buffer("_mean", mean)  # cached on device when .to(...)
+            self.register_buffer("_mean",
+                                 mean)  # cached on device when .to(...)
             self.register_buffer("_std", std.clamp_min(self.eps))
 
     # tiny helper so buffers exist even on CPU tensors
@@ -87,14 +89,17 @@ class TimeSeriesDataset(Dataset):
             x = (x - self._mean) / self._std
         x = x.squeeze(0)
         return x, self.labels[idx]
+
+
 # -----------------------------------------------------------------------------
 # Train / Eval helpers
 # -----------------------------------------------------------------------------
 
+
 def _accuracy(logits: torch.Tensor, labels: torch.Tensor) -> float:
     if logits.dim() == 1:  # binary with BCEWithLogits
         preds = (torch.sigmoid(logits) > 0.5).long()
-    else:                  # multi‑class with CE
+    else:  # multi‑class with CE
         preds = logits.argmax(dim=1)
     return (preds == labels).float().mean().item()
 
@@ -111,7 +116,7 @@ def _run_epoch(model, loader, criterion, optimizer, device, train=True):
         if train:
             optimizer.zero_grad()
         logits = model(x)
-        loss = criterion(logits, y.float() if logits.dim()==1 else y)
+        loss = criterion(logits, y.float() if logits.dim() == 1 else y)
         if train:
             loss.backward()
             optimizer.step()
@@ -120,9 +125,11 @@ def _run_epoch(model, loader, criterion, optimizer, device, train=True):
     n = len(loader.dataset)
     return total_loss / n, total_acc / n
 
+
 # -----------------------------------------------------------------------------
 # Main – quick demo on synthetic data
 # -----------------------------------------------------------------------------
+
 
 def main(args):
     rng = np.random.default_rng(args.seed)
@@ -133,17 +140,24 @@ def main(args):
         X_val = X_val.transpose(0, 2, 1)
     else:
         X_train = rng.standard_normal(size=(20000, 24, 7), dtype=np.float32)
-        y_train = rng.integers(0, args.num_classes, size=(20000,), dtype=np.int64)
-        X_val   = rng.standard_normal(size=(5000, 24, 7), dtype=np.float32)
-        y_val   = rng.integers(0, args.num_classes, size=(5000,), dtype=np.int64)
+        y_train = rng.integers(0,
+                               args.num_classes,
+                               size=(20000, ),
+                               dtype=np.int64)
+        X_val = rng.standard_normal(size=(5000, 24, 7), dtype=np.float32)
+        y_val = rng.integers(0,
+                             args.num_classes,
+                             size=(5000, ),
+                             dtype=np.int64)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     train_set = TimeSeriesDataset(X_train, y_train)
-    val_set   = TimeSeriesDataset(X_val,   y_val)
+    val_set = TimeSeriesDataset(X_val, y_val)
 
-
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
-    val_loader   = DataLoader(val_set,   batch_size=args.batch_size)
+    train_loader = DataLoader(train_set,
+                              batch_size=args.batch_size,
+                              shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = RNNClassifier(
@@ -155,35 +169,51 @@ def main(args):
         dropout=args.dropout,
     ).to(device)
 
-    criterion = (
-        nn.BCEWithLogitsLoss()
-        if args.num_classes == 1 else
-        nn.CrossEntropyLoss()
-    )
+    criterion = (nn.BCEWithLogitsLoss()
+                 if args.num_classes == 1 else nn.CrossEntropyLoss())
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     best_val = 0.0
     Path(args.ckpt_dir).mkdir(parents=True, exist_ok=True)
 
     for epoch in tqdm(range(1, args.epochs + 1)):
-        tr_loss, tr_acc = _run_epoch(model, train_loader, criterion, optimizer, device, train=True)
-        va_loss, va_acc = _run_epoch(model, val_loader, criterion, optimizer, device, train=False)
-        print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {va_loss:.4f}/{va_acc:.4f}")
+        tr_loss, tr_acc = _run_epoch(model,
+                                     train_loader,
+                                     criterion,
+                                     optimizer,
+                                     device,
+                                     train=True)
+        va_loss, va_acc = _run_epoch(model,
+                                     val_loader,
+                                     criterion,
+                                     optimizer,
+                                     device,
+                                     train=False)
+        print(
+            f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {va_loss:.4f}/{va_acc:.4f}"
+        )
         if va_acc > best_val:
             best_val = va_acc
             print(f"New best val acc: {best_val:.4f} -> saving model")
-            torch.save({"model_state": model.state_dict()}, Path(args.ckpt_dir) / "best_model.pt")
+            torch.save({"model_state": model.state_dict()},
+                       Path(args.ckpt_dir) / "best_model.pt")
     print(f"Train Finished. Best val acc: {best_val:.4f}")
+
+
 # -----------------------------------------------------------------------------
 # CLI
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Bidirectional LSTM/GRU time‑series classifier")
+    p = argparse.ArgumentParser(
+        description="Bidirectional LSTM/GRU time‑series classifier")
     p.add_argument("--hidden_dim", type=int, default=128)
     p.add_argument("--num_layers", type=int, default=2)
     p.add_argument("--rnn_type", choices=["lstm", "gru"], default="lstm")
-    p.add_argument("--num_classes", type=int, default=1, help="1 for binary, >1 for multi‑class")
+    p.add_argument("--num_classes",
+                   type=int,
+                   default=1,
+                   help="1 for binary, >1 for multi‑class")
     p.add_argument("--batch_size", type=int, default=256)
     p.add_argument("--epochs", type=int, default=40)
     p.add_argument("--lr", type=float, default=1e-3)

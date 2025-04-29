@@ -13,6 +13,7 @@ from queue import Queue
 from inspect import isfunction
 from PIL import Image, ImageDraw, ImageFont
 import ssl
+
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
@@ -26,7 +27,8 @@ def log_txt_as_img(wh, xc, size=10):
         draw = ImageDraw.Draw(txt)
         font = ImageFont.truetype('data/DejaVuSans.ttf', size=size)
         nc = int(40 * (wh[0] / 256))
-        lines = "\n".join(xc[bi][start:start + nc] for start in range(0, len(xc[bi]), nc))
+        lines = "\n".join(xc[bi][start:start + nc]
+                          for start in range(0, len(xc[bi]), nc))
 
         try:
             draw.text((0, 0), lines, fill="black", font=font)
@@ -73,7 +75,9 @@ def mean_flat(tensor):
 def count_params(model, verbose=False):
     total_params = sum(p.numel() for p in model.parameters())
     if verbose:
-        print(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
+        print(
+            f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params."
+        )
     return total_params
 
 
@@ -107,9 +111,12 @@ def _do_parallel_data_prefetch(func, Q, data, idx, idx_to_fn=False):
     Q.put("Done")
 
 
-def parallel_data_prefetch(
-        func: callable, data, n_proc, target_data_type="ndarray", cpu_intensive=True, use_worker_id=False
-):
+def parallel_data_prefetch(func: callable,
+                           data,
+                           n_proc,
+                           target_data_type="ndarray",
+                           cpu_intensive=True,
+                           use_worker_id=False):
     # if target_data_type not in ["ndarray", "list"]:
     #     raise ValueError(
     #         "Data, which is passed to parallel_data_prefetch has to be either of type list or ndarray."
@@ -139,22 +146,15 @@ def parallel_data_prefetch(
         proc = Thread
     # spawn processes
     if target_data_type == "ndarray":
-        arguments = [
-            [func, Q, part, i, use_worker_id]
-            for i, part in enumerate(np.array_split(data, n_proc))
-        ]
+        arguments = [[func, Q, part, i, use_worker_id]
+                     for i, part in enumerate(np.array_split(data, n_proc))]
     else:
-        step = (
-            int(len(data) / n_proc + 1)
-            if len(data) % n_proc != 0
-            else int(len(data) / n_proc)
-        )
-        arguments = [
-            [func, Q, part, i, use_worker_id]
-            for i, part in enumerate(
-                [data[i: i + step] for i in range(0, len(data), step)]
-            )
-        ]
+        step = (int(len(data) / n_proc + 1) if len(data) %
+                n_proc != 0 else int(len(data) / n_proc))
+        arguments = [[func, Q, part, i, use_worker_id]
+                     for i, part in enumerate(
+                         [data[i:i + step]
+                          for i in range(0, len(data), step)])]
     processes = []
     for i in range(n_proc):
         p = proc(target=_do_parallel_data_prefetch, args=arguments[i])

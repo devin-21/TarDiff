@@ -13,7 +13,7 @@ def exists(val):
 
 
 def uniq(arr):
-    return{el: True for el in arr}.keys()
+    return {el: True for el in arr}.keys()
 
 
 def default(val, d):
@@ -35,6 +35,7 @@ def init_(tensor):
 
 # feedforward
 class GEGLU(nn.Module):
+
     def __init__(self, dim_in, dim_out):
         super().__init__()
         self.proj = nn.Linear(dim_in, dim_out * 2)
@@ -45,20 +46,16 @@ class GEGLU(nn.Module):
 
 
 class FeedForward(nn.Module):
+
     def __init__(self, dim, dim_out=None, mult=4, glu=False, dropout=0.):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
-        project_in = nn.Sequential(
-            nn.Linear(dim, inner_dim),
-            nn.GELU()
-        ) if not glu else GEGLU(dim, inner_dim)
+        project_in = nn.Sequential(nn.Linear(
+            dim, inner_dim), nn.GELU()) if not glu else GEGLU(dim, inner_dim)
 
-        self.net = nn.Sequential(
-            project_in,
-            nn.Dropout(dropout),
-            nn.Linear(inner_dim, dim_out)
-        )
+        self.net = nn.Sequential(project_in, nn.Dropout(dropout),
+                                 nn.Linear(inner_dim, dim_out))
 
     def forward(self, x):
         return self.net(x)
@@ -74,29 +71,41 @@ def zero_module(module):
 
 
 def Normalize(in_channels):
-    return torch.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
+    return torch.nn.GroupNorm(num_groups=32,
+                              num_channels=in_channels,
+                              eps=1e-6,
+                              affine=True)
 
 
 class LinearAttention(nn.Module):
+
     def __init__(self, dim, heads=4, dim_head=32):
         super().__init__()
         self.heads = heads
         hidden_dim = dim_head * heads
-        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, bias = False)
+        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, bias=False)
         self.to_out = nn.Conv2d(hidden_dim, dim, 1)
 
     def forward(self, x):
         b, c, h, w = x.shape
         qkv = self.to_qkv(x)
-        q, k, v = rearrange(qkv, 'b (qkv heads c) h w -> qkv b heads c (h w)', heads = self.heads, qkv=3)
-        k = k.softmax(dim=-1)  
+        q, k, v = rearrange(qkv,
+                            'b (qkv heads c) h w -> qkv b heads c (h w)',
+                            heads=self.heads,
+                            qkv=3)
+        k = k.softmax(dim=-1)
         context = torch.einsum('bhdn,bhen->bhde', k, v)
         out = torch.einsum('bhde,bhdn->bhen', context, q)
-        out = rearrange(out, 'b heads c (h w) -> b (heads c) h w', heads=self.heads, h=h, w=w)
+        out = rearrange(out,
+                        'b heads c (h w) -> b (heads c) h w',
+                        heads=self.heads,
+                        h=h,
+                        w=w)
         return self.to_out(out)
 
 
 class SpatialSelfAttention(nn.Module):
+
     def __init__(self, in_channels):
         super().__init__()
         self.in_channels = in_channels
@@ -131,7 +140,7 @@ class SpatialSelfAttention(nn.Module):
         v = self.v(h_)
 
         # compute attention
-        b,c,h,w = q.shape
+        b, c, h, w = q.shape
         q = rearrange(q, 'b c h w -> b (h w) c')
         k = rearrange(k, 'b c h w -> b c (h w)')
         w_ = torch.einsum('bij,bjk->bik', q, k)
@@ -146,28 +155,34 @@ class SpatialSelfAttention(nn.Module):
         h_ = rearrange(h_, 'b c (h w) -> b c h w', h=h)
         h_ = self.proj_out(h_)
 
-        return x+h_
+        return x + h_
 
 
 class CrossAttention(nn.Module):
-    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0., hard_assign=False, inter_mask=False):
+
+    def __init__(self,
+                 query_dim,
+                 context_dim=None,
+                 heads=8,
+                 dim_head=64,
+                 dropout=0.,
+                 hard_assign=False,
+                 inter_mask=False):
         super().__init__()
         self.hard_assign = hard_assign
         self.inter_mask = inter_mask
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
 
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         self.heads = heads
 
         self.to_q = nn.Linear(query_dim, inner_dim, bias=False)
         self.to_k = nn.Linear(query_dim, inner_dim, bias=False)
         self.to_v = nn.Linear(query_dim, inner_dim, bias=False)
 
-        self.to_out = nn.Sequential(
-            nn.Linear(inner_dim, query_dim),
-            nn.Dropout(dropout)
-        )
+        self.to_out = nn.Sequential(nn.Linear(inner_dim, query_dim),
+                                    nn.Dropout(dropout))
 
     def forward(self, x, context=None, mask=None):
         h = self.heads
@@ -175,13 +190,14 @@ class CrossAttention(nn.Module):
         q = self.to_q(x)
         context = default(context, x)
         if len(context.shape) == 2:
-            k = self.to_k(context)[:,None]
-            v = self.to_v(context)[:,None]
+            k = self.to_k(context)[:, None]
+            v = self.to_v(context)[:, None]
         else:
             k = self.to_k(context)
             v = self.to_v(context)
 
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h),
+                      (q, k, v))
 
         sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
@@ -192,7 +208,8 @@ class CrossAttention(nn.Module):
             if self.hard_assign:
                 sim = sim + (1 - mask) * max_neg_value
             elif self.inter_mask:
-                mask_of_mask = torch.where(mask > 0, torch.zeros_like(mask), torch.ones_like(mask))
+                mask_of_mask = torch.where(mask > 0, torch.zeros_like(mask),
+                                           torch.ones_like(mask))
                 max_neg_value = -torch.finfo(mask.dtype).max
                 mask = mask_of_mask * max_neg_value + mask
                 sim = sim + mask
@@ -209,19 +226,39 @@ class CrossAttention(nn.Module):
 
 
 class BasicTransformerBlock(nn.Module):
-    def __init__(self, dim, n_heads, d_head, dropout=0., context_dim=None, gated_ff=True, checkpoint=False, hard_assign=False, inter_mask=False):
+
+    def __init__(self,
+                 dim,
+                 n_heads,
+                 d_head,
+                 dropout=0.,
+                 context_dim=None,
+                 gated_ff=True,
+                 checkpoint=False,
+                 hard_assign=False,
+                 inter_mask=False):
         super().__init__()
-        self.attn1 = CrossAttention(query_dim=dim, heads=n_heads, dim_head=d_head, dropout=dropout)  # is a self-attention
+        self.attn1 = CrossAttention(query_dim=dim,
+                                    heads=n_heads,
+                                    dim_head=d_head,
+                                    dropout=dropout)  # is a self-attention
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff)
-        self.attn2 = CrossAttention(query_dim=dim, context_dim=context_dim,
-                                    heads=n_heads, dim_head=d_head, dropout=dropout, hard_assign=hard_assign, inter_mask=inter_mask)  # is self-attn if context is none
+        self.attn2 = CrossAttention(
+            query_dim=dim,
+            context_dim=context_dim,
+            heads=n_heads,
+            dim_head=d_head,
+            dropout=dropout,
+            hard_assign=hard_assign,
+            inter_mask=inter_mask)  # is self-attn if context is none
         self.norm1 = nn.LayerNorm(dim)
         self.norm2 = nn.LayerNorm(dim)
         self.norm3 = nn.LayerNorm(dim)
         self.checkpoint = checkpoint
 
     def forward(self, x, context=None, mask=None):
-        return checkpoint(self._forward, (x, context, mask), self.parameters(), self.checkpoint)
+        return checkpoint(self._forward, (x, context, mask), self.parameters(),
+                          self.checkpoint)
 
     def _forward(self, x, context=None, mask=None):
         x = self.attn1(self.norm1(x)) + x
@@ -238,8 +275,14 @@ class SpatialTransformer(nn.Module):
     Then apply standard transformer action.
     Finally, reshape to image
     """
-    def __init__(self, in_channels, n_heads, d_head,
-                 depth=1, dropout=0., context_dim=None):
+
+    def __init__(self,
+                 in_channels,
+                 n_heads,
+                 d_head,
+                 depth=1,
+                 dropout=0.,
+                 context_dim=None):
         super().__init__()
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
@@ -251,16 +294,21 @@ class SpatialTransformer(nn.Module):
                                  stride=1,
                                  padding=0)
 
-        self.transformer_blocks = nn.ModuleList(
-            [BasicTransformerBlock(inner_dim, n_heads, d_head, dropout=dropout, context_dim=context_dim)
-                for d in range(depth)]
-        )
+        self.transformer_blocks = nn.ModuleList([
+            BasicTransformerBlock(inner_dim,
+                                  n_heads,
+                                  d_head,
+                                  dropout=dropout,
+                                  context_dim=context_dim)
+            for d in range(depth)
+        ])
 
-        self.proj_out = zero_module(nn.Conv2d(inner_dim,
-                                              in_channels,
-                                              kernel_size=1,
-                                              stride=1,
-                                              padding=0))
+        self.proj_out = zero_module(
+            nn.Conv2d(inner_dim,
+                      in_channels,
+                      kernel_size=1,
+                      stride=1,
+                      padding=0))
 
     def forward(self, x, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
@@ -274,8 +322,8 @@ class SpatialTransformer(nn.Module):
         x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
         x = self.proj_out(x)
         return x + x_in
-    
-    
+
+
 class Spatial1DTransformer(nn.Module):
     """
     Transformer block for image-like data.
@@ -284,8 +332,16 @@ class Spatial1DTransformer(nn.Module):
     Then apply standard transformer action.
     Finally, reshape to image
     """
-    def __init__(self, in_channels, n_heads, d_head,
-                 depth=1, dropout=0., context_dim=None, hard_assign=False, inter_mask=False):
+
+    def __init__(self,
+                 in_channels,
+                 n_heads,
+                 d_head,
+                 depth=1,
+                 dropout=0.,
+                 context_dim=None,
+                 hard_assign=False,
+                 inter_mask=False):
         super().__init__()
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
@@ -297,16 +353,22 @@ class Spatial1DTransformer(nn.Module):
                                  stride=1,
                                  padding=0)
 
-        self.transformer_blocks = nn.ModuleList(
-            [BasicTransformerBlock(inner_dim, n_heads, d_head, dropout=dropout, context_dim=context_dim, hard_assign=hard_assign, inter_mask=inter_mask)
-                for d in range(depth)]
-        )
+        self.transformer_blocks = nn.ModuleList([
+            BasicTransformerBlock(inner_dim,
+                                  n_heads,
+                                  d_head,
+                                  dropout=dropout,
+                                  context_dim=context_dim,
+                                  hard_assign=hard_assign,
+                                  inter_mask=inter_mask) for d in range(depth)
+        ])
 
-        self.proj_out = zero_module(nn.Conv1d(inner_dim,
-                                              in_channels,
-                                              kernel_size=1,
-                                              stride=1,
-                                              padding=0))
+        self.proj_out = zero_module(
+            nn.Conv1d(inner_dim,
+                      in_channels,
+                      kernel_size=1,
+                      stride=1,
+                      padding=0))
 
     def forward(self, x, context=None, mask=None):
         # note: if no context is given, cross-attention defaults to self-attention

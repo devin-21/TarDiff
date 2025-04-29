@@ -5,7 +5,6 @@ import torch
 from torch import nn
 
 
-
 class RNNClassifier(nn.Module):
     """Bidirectional LSTM/GRU classifier for fixed‑length sequences."""
 
@@ -31,9 +30,7 @@ class RNNClassifier(nn.Module):
         self.fc = nn.Linear(hidden_dim * 2, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # (B, T, F)
-        rnn_out, _ = self.rnn(x)               # (B, T, 2*H)
-        last_hidden = rnn_out[:, -1, :]        # final time‑step representation
-        logits = self.fc(last_hidden)          # (B, C) or (B, 1)
-        return logits.squeeze(-1)              # binary → (B,) ; multi‑class stays (B, C)
-
-
+        rnn_out, _ = self.rnn(x)  # (B, T, 2*H)
+        last_hidden = rnn_out[:, -1, :]  # final time‑step representation
+        logits = self.fc(last_hidden)  # (B, C) or (B, 1)
+        return logits.squeeze(-1)  # binary → (B,) ; multi‑class stays (B, C)
