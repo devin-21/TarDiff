@@ -72,12 +72,28 @@ The script creates a synthetic dataset tailored to the guidance task.
 
 ## 6 · Stage 4 · Utility Evaluation — *TSTR* and *TSRTR*
 
-After generation you can quantify how useful the synthetic data really is for the **target task** in two complementary ways:
+After generation, you can assess the utility of the synthetic data for the **target task** using two complementary protocols:
 
-| Protocol | Train set | Test set | Typical question answered |
-|----------|-----------|----------|---------------------------|
-| **TSTR** (Train-Synthetic, Test-Real) | **Synthetic only** | **Real** | “If I publish only synthetic EHRs, how well does a model trained on them generalise to real patients?” |
-| **TSRTR** (Train-Synthetic-Real, Test-Real) | **Synthetic + Real** (α ∈ {0.2,…,1.0}) | **Real** | “If I enlarge the real dataset with α× synthetic samples, do I gain extra accuracy?” |
+| Protocol | Training Set | Test Set | Question Answered |
+|:---------|:-------------|:---------|:------------------|
+| **TSTR** (Train-Synthetic, Test-Real) | **Synthetic only** | **Real** | “If I train a model purely on synthetic EHRs, how well does it generalize to real patients?” |
+| **TSRTR** (Train-Synthetic-Real, Test-Real) | **Synthetic + Real** (α ∈ {0.2, …, 1.0}) | **Real** | “If I augment the real training set with α× synthetic samples, does it improve model performance?” |
+
+---
+
+### How to run TSTR and TSRTR evaluations
+
+You can directly reuse the training script under `classifier/` to run both evaluations:
+
+```bash
+cd classifier
+bash train.sh    # Edit the training data path to point to either synthetic-only or mixed (real + synthetic) data
+```
+
+- For **TSTR**, set the training set path to the synthetic dataset.
+- For **TSRTR**, combine the real training data with synthetic samples according to your desired α ratio, and update the path accordingly.
+
+The downstream model will be trained and evaluated automatically on the real validation and test sets.
 
 ---
 
