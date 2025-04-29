@@ -10,7 +10,6 @@ Synthetic Electronic Health Record (EHR) time-series generation is crucial for a
 
 ## 1 · Environment
 
-### Env
 Prepare TarDiff's environment.
 ```
 conda env create -f environment.yaml
@@ -20,9 +19,17 @@ conda activate tardiff
 Prepare TS downstream task environment depands on the repo you used for the specific task.
 
 ## 2 · Data Pre-processing
-You can download eICU dataset and MIMIC-III dataset from the link below:
 
-**Note**: We only use the time series recorded in both two EHR dataset. We prepared our script for extracting ts data on these dataset for reference, you can check them in directory **data_preprocess**
+You can access the raw datasets at the following links:
+
+- [eICU Collaborative Research Database](https://eicu-crd.mit.edu/)
+- [MIMIC-III Clinical Database](https://physionet.org/content/mimiciii/1.4/)
+
+> **Note:** Both datasets require prior approval and credentialing before download.
+
+We focus exclusively on the multivariate time-series recordings available in these datasets.  
+To assist with preprocessing, we provide high-level extraction scripts under **`data_preprocess/`**.
+
 
 
 ## 3 · Stage 1 · Train the *Base* Diffusion Model
