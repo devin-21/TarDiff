@@ -1,21 +1,7 @@
-#!/usr/bin/env python3
-"""
-Time‑series RNN classifier
--------------------------
-• Expected input  shape : (batch, seq_len, n_features)
-• Predicted output shape: (batch,) **or** (batch, n_classes) depending on `num_classes`
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
-This script defines:
-1. `TimeSeriesDataset`  – a light‑weight `torch.utils.data.Dataset` that wraps
-   numpy arrays or tensors.
-2. `RNNClassifier`      – a configurable LSTM/GRU backbone followed by a fully
-   connected layer that maps the last hidden state to class logits.
-3. Training / evaluation loops with a command‑line interface for easy
-   experimentation.
 
-Example (binary classification with dummy data):
-$ python timeseries_rnn_classifier.py --num_classes 1 --epochs 10
-"""
 from __future__ import annotations
 
 import argparse

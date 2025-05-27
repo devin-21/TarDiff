@@ -1,3 +1,5 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 import argparse, os, sys, datetime
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything

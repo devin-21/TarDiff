@@ -1,5 +1,5 @@
-"""SAMPLING ONLY."""
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 import torch
 import numpy as np
 from tqdm import tqdm

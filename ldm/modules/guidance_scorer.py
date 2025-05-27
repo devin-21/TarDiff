@@ -1,10 +1,12 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 import time
-from scipy.stats import truncnorm  # [Added code: 引入truncnorm用于采样]
+from scipy.stats import truncnorm  
 import math
 
 import torch.nn.functional as F
@@ -226,7 +228,6 @@ class GradDotCalculatorformer:
         grad_wrt_sample = torch.autograd.grad(total_dot,
                                               test_sample,
                                               create_graph=False)[0]
-        #mmd_grad=self.compute_mmd_grad(test_sample)[0].squeeze(0).transpose(2,1)
         gd_grad = grad_wrt_sample.squeeze(0).transpose(2, 1)
         torch.cuda.empty_cache()
         return gd_grad * 1e7

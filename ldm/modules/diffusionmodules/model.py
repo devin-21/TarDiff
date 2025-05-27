@@ -1,4 +1,5 @@
-# pytorch_diffusion + derived encoder decoder
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 import math
 import torch
 import torch.nn as nn
